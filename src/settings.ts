@@ -1,18 +1,18 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import MyPlugin from './main';
+import EmptyPageTitlePlugin from './main';
 
-export interface MyPluginSettings {
-	mySetting: string;
+export interface EmptyPageTitleSettings {
+	italicTitles: boolean;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default',
+export const DEFAULT_SETTINGS: EmptyPageTitleSettings = {
+	italicTitles: true,
 };
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export class EmptyPageTitleSettingTab extends PluginSettingTab {
+	plugin: EmptyPageTitlePlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: EmptyPageTitlePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -22,15 +22,15 @@ export class SampleSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		// TODO: Use declarative settings API when i actually get Obsidian 1.13.0
 		new Setting(containerEl)
-			.setName('Settings #1')
-			.setDesc("It's a secret")
-			.addText((text) =>
-				text
-					.setPlaceholder('Enter your secret')
-					.setValue(this.plugin.settings.mySetting)
+			.setName('Italic titles')
+			.setDesc('Display empty page titles as italic.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.italicTitles)
 					.onChange(async (value) => {
-						this.plugin.settings.mySetting = value;
+						this.plugin.settings.italicTitles = value;
 						await this.plugin.saveSettings();
 					}),
 			);

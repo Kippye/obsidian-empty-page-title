@@ -3,9 +3,8 @@
 	"name": "Empty Page Title",
 	"version": "1.0.0",
 	"minAppVersion": "1.0.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+	"description": "Indicates empty pages with gray and optionally italic title text in tabs and file explorer.",
+	"author": "Kip",
+	"authorUrl": "https://github.com/Kippye",
+	"isDesktopOnly": true
 }
