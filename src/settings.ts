@@ -1,18 +1,20 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import EmptyPageTitlePlugin from './main';
+import EmptyFileNamePlugin from './main';
 
-export interface EmptyPageTitleSettings {
-	italicTitles: boolean;
+export interface EmptyFileNameSettings {
+	italicNames: boolean;
+	whitespaceIsEmpty: boolean;
 }
 
-export const DEFAULT_SETTINGS: EmptyPageTitleSettings = {
-	italicTitles: true,
+export const DEFAULT_SETTINGS: EmptyFileNameSettings = {
+	italicNames: true,
+	whitespaceIsEmpty: false,
 };
 
-export class EmptyPageTitleSettingTab extends PluginSettingTab {
-	plugin: EmptyPageTitlePlugin;
+export class EmptyFileNameSettingTab extends PluginSettingTab {
+	plugin: EmptyFileNamePlugin;
 
-	constructor(app: App, plugin: EmptyPageTitlePlugin) {
+	constructor(app: App, plugin: EmptyFileNamePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -24,13 +26,26 @@ export class EmptyPageTitleSettingTab extends PluginSettingTab {
 
 		// TODO: Use declarative settings API when i actually get Obsidian 1.13.0
 		new Setting(containerEl)
-			.setName('Italic titles')
-			.setDesc('Display empty page titles as italic.')
+			.setName('Italic names')
+			.setDesc('Display empty file names as italic.')
 			.addToggle((toggle) =>
 				toggle
-					.setValue(this.plugin.settings.italicTitles)
+					.setValue(this.plugin.settings.italicNames)
 					.onChange(async (value) => {
-						this.plugin.settings.italicTitles = value;
+						this.plugin.settings.italicNames = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+		new Setting(containerEl)
+			.setName('Whitespace is empty')
+			.setDesc(
+				'Treat files which only contain whitespace as empty. Requires all files to be read.',
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.whitespaceIsEmpty)
+					.onChange(async (value) => {
+						this.plugin.settings.whitespaceIsEmpty = value;
 						await this.plugin.saveSettings();
 					}),
 			);

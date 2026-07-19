@@ -1,23 +1,23 @@
 import { Plugin } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
-	EmptyPageTitleSettings,
-	EmptyPageTitleSettingTab,
+	EmptyFileNameSettings,
+	EmptyFileNameSettingTab,
 } from './settings';
-import { refreshAll, registerEmptyPageStyling } from './empty-page';
+import { refreshAll, registerEmptyFileStyling } from './empty-file';
 
-export default class EmptyPageTitlePlugin extends Plugin {
-	settings!: EmptyPageTitleSettings;
+export default class EmptyFileNamePlugin extends Plugin {
+	settings!: EmptyFileNameSettings;
 	onSettingsChange: (() => void) | null = null;
 
 	async onload() {
 		await this.loadSettings();
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new EmptyPageTitleSettingTab(this.app, this));
+		this.addSettingTab(new EmptyFileNameSettingTab(this.app, this));
 
 		// Keep empty-page styling in sync across the file explorer and tabs.
-		registerEmptyPageStyling(this);
+		registerEmptyFileStyling(this);
 
 		this.onSettingsChange = () => {
 			void refreshAll(this);
@@ -30,7 +30,7 @@ export default class EmptyPageTitlePlugin extends Plugin {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<EmptyPageTitleSettings>,
+			(await this.loadData()) as Partial<EmptyFileNameSettings>,
 		);
 	}
 

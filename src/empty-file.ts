@@ -1,8 +1,8 @@
-import { Plugin, TFile, TAbstractFile, FileView, TFolder } from 'obsidian';
-import EmptyPageTitlePlugin from './main';
+import { Plugin, TFile, TAbstractFile, TFolder } from 'obsidian';
+import EmptyFileNamePlugin from './main';
 
-export const EMPTY_PAGE_CLASS = 'empty-page';
-export const EMPTY_PAGE_CLASS_ITALIC = 'empty-page-italic';
+export const EMPTY_FILE_CLASS = 'empty-file';
+export const EMPTY_FILE_CLASS_ITALIC = 'empty-file-italic';
 
 type RefreshSettings = {
 	files?: boolean;
@@ -25,12 +25,15 @@ async function isFileEmpty(
 		if (file.stat.size === 0) {
 			return true;
 		}
-
-		try {
-			const content = await plugin.app.vault.cachedRead(file);
-			return content.trim().length === 0;
-		} catch {
-			// If we cannot read the content, fall back to the size check only.
+		if ((plugin as EmptyFileNamePlugin).settings.whitespaceIsEmpty) {
+			try {
+				const content = await plugin.app.vault.cachedRead(file);
+				return content.trim().length === 0;
+			} catch {
+				// If we cannot read the content, fall back to the size check only.
+				return false;
+			}
+		} else {
 			return false;
 		}
 	} else if (file instanceof TFolder) {
@@ -42,7 +45,8 @@ async function isFileEmpty(
 }
 
 /**
- * Applies or removes the empty-page class on a single file's explorer title
+ * For folders, toggles empty file class on folder titles in explorer.
+ * For files, toggles empty file class on file titles in explorer
  * and any open tab titles for that file.
  */
 async function updateFileStyling(
@@ -50,13 +54,13 @@ async function updateFileStyling(
 	file: TAbstractFile,
 ): Promise<void> {
 	const empty = await isFileEmpty(plugin, file);
-	const settings = (plugin as EmptyPageTitlePlugin).settings;
-	const emptyPageStyle = settings.italicTitles
-		? EMPTY_PAGE_CLASS_ITALIC
-		: EMPTY_PAGE_CLASS;
-	const otherEmptyPageStyle = settings.italicTitles
-		? EMPTY_PAGE_CLASS
-		: EMPTY_PAGE_CLASS_ITALIC;
+	const settings = (plugin as EmptyFileNamePlugin).settings;
+	const emptyFileStyle = settings.italicNames
+		? EMPTY_FILE_CLASS_ITALIC
+		: EMPTY_FILE_CLASS;
+	const otherEmptyFileStyle = settings.italicNames
+		? EMPTY_FILE_CLASS
+		: EMPTY_FILE_CLASS_ITALIC;
 
 	if (file instanceof TFolder) {
 		const explorerFolderTitles = plugin.app.workspace
@@ -74,8 +78,8 @@ async function updateFileStyling(
 				`.nav-folder-title-content`,
 			);
 
-			titleContentEl?.toggleClass(emptyPageStyle, empty);
-			titleContentEl?.removeClass(otherEmptyPageStyle);
+			titleContentEl?.toggleClass(emptyFileStyle, empty);
+			titleContentEl?.removeClass(otherEmptyFileStyle);
 		}
 	} else if (file instanceof TFile) {
 		// File explorer items: match by data-path attribute.
@@ -91,17 +95,15 @@ async function updateFileStyling(
 			);
 
 		for (const titleEl of explorerTitles) {
-			titleEl.toggleClass(emptyPageStyle, empty);
-			titleEl.removeClass(otherEmptyPageStyle);
+			titleEl.toggleClass(emptyFileStyle, empty);
+			titleEl.removeClass(otherEmptyFileStyle);
 		}
 
 		// Open tab titles: match by the leaf that actually displays this file
 		// and navigate to the corresponding tab header by sibling index.
 		const tabTitles = plugin.app.workspace
 			.getLeavesOfType('markdown')
-			.filter((leaf) => {
-				return leaf.view instanceof FileView && leaf.view.file === file;
-			})
+			.filter((leaf) => leaf.view.getState()?.file === file.path)
 			.map((leaf) => {
 				const leafEl = leaf.view.containerEl // Leaf content
 					.closest('.workspace-leaf');
@@ -142,8 +144,8 @@ async function updateFileStyling(
 			.filter((el): el is HTMLElement => el !== null);
 
 		for (const titleEl of tabTitles) {
-			titleEl.toggleClass(emptyPageStyle, empty);
-			titleEl.removeClass(otherEmptyPageStyle);
+			titleEl.toggleClass(emptyFileStyle, empty);
+			titleEl.removeClass(otherEmptyFileStyle);
 		}
 	} else {
 		console.warn('Unsupported file type in updateFileStyling');
@@ -151,7 +153,7 @@ async function updateFileStyling(
 }
 
 /**
- * Re-evaluates styling for every markdown file in the vault and for all open
+ * Re-evaluates styling for every folder and markdown file in the vault and for all open
  * tabs. Used on initial load and on layout changes.
  */
 export async function refreshAll(
@@ -168,19 +170,46 @@ export async function refreshAll(
 	}
 	if (refreshSettings.files) {
 		const files = plugin.app.vault.getMarkdownFiles();
-		await Promise.all(files.map((file) => updateFileStyling(plugin, file)));
+		await Promise.all(
+			files.map((file) => {
+				return updateFileStyling(plugin, file);
+			}),
+		);
 	}
 }
 
 /**
- * Registers all listeners required to keep empty-page styling in sync.
+ * Registers all listeners required to keep styling in sync.
  * All registrations use plugin.register* helpers so they are cleaned up on
  * unload automatically.
  */
-export function registerEmptyPageStyling(plugin: Plugin): void {
+export function registerEmptyFileStyling(plugin: Plugin): void {
+	// The file explorer renders its tree in waves (root titles first, then
+	// child titles get their data-path assigned later). A MutationObserver on
+	// the explorer container catches every render wave and re-applies styling,
+	// so we never race against Obsidian's async DOM population.
+	let refreshQueued = false;
+	const scheduleRefresh = () => {
+		if (refreshQueued) return;
+		refreshQueued = true;
+		window.requestAnimationFrame(() => {
+			refreshQueued = false;
+			void refreshAll(plugin);
+		});
+	};
+
 	// Initial pass once the layout is ready.
 	plugin.app.workspace.onLayoutReady(() => {
+		// Is this extra refresh required?
 		void refreshAll(plugin);
+		for (const leaf of plugin.app.workspace.getLeavesOfType(
+			'file-explorer',
+		)) {
+			const container = leaf.view.containerEl;
+			const observer = new MutationObserver(scheduleRefresh);
+			observer.observe(container, { childList: true, subtree: true });
+			plugin.register(() => observer.disconnect());
+		}
 	});
 
 	// Re-apply when the layout changes (new tabs/explorer items appear).
@@ -221,9 +250,7 @@ export function registerEmptyPageStyling(plugin: Plugin): void {
 		plugin.app.vault.on('delete', (file: TAbstractFile) => {
 			if (file instanceof TFile && file.extension === 'md') {
 				void refreshAll(plugin);
-			}
-			// Re-evaluate newly created folders.
-			else if (file instanceof TFolder) {
+			} else if (file instanceof TFolder) {
 				// For some reason, we can't get the parent of the folder anymore
 				// So we have to refresh all folders
 				void refreshAll(plugin, { folders: true });
@@ -244,8 +271,8 @@ export function registerEmptyPageStyling(plugin: Plugin): void {
 						),
 					);
 					for (const el of oldTitles) {
-						el.removeClass(EMPTY_PAGE_CLASS);
-						el.removeClass(EMPTY_PAGE_CLASS_ITALIC);
+						el.removeClass(EMPTY_FILE_CLASS);
+						el.removeClass(EMPTY_FILE_CLASS_ITALIC);
 					}
 					void updateFileStyling(plugin, file);
 				}
