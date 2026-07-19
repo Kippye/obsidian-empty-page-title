@@ -1,14 +1,10 @@
 # Obsidian Empty File Name Plugin
 
-This is a plugin for Obsidian (https://obsidian.md).
-
-This very simple plugin has one function - display the names of empty folders and files with a more muted / inactive style in:
+This very simple Obsidian plugin has one function - display the names of empty folders and files with a more muted / inactive style in:
 
 - Open page tab headers
 - File explorer folders
 - File explorer files
-
-NOTE: This project was mostly written via LLM and then modified to learn the basics of Obsidian plugin development. It probably isn't optimised or futureproof at all.
 
 ## Releasing new releases
 
@@ -21,13 +17,6 @@ NOTE: This project was mostly written via LLM and then modified to learn the bas
 > You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
 > The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
 
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v18 (`node --version`).
-- `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
 ## Manually installing the plugin
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/empty-page-title/`.
+- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/empty-file-name/`.
