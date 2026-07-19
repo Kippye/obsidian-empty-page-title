@@ -1,13 +1,30 @@
 import { Plugin, TFile, TAbstractFile, TFolder } from 'obsidian';
 import EmptyFileNamePlugin from './main';
 
-export const EMPTY_FILE_CLASS = 'empty-file';
-export const EMPTY_FILE_CLASS_ITALIC = 'empty-file-italic';
+const EMPTY_FILE_CLASS = 'empty-file';
+const ITALIC_CLASS = 'is-italic';
+const ASTERISK_CLASS = 'has-asterisk';
+
+const emptyFileClasses = {
+	[EMPTY_FILE_CLASS]: true,
+	[ITALIC_CLASS]: true,
+	[ASTERISK_CLASS]: false,
+};
 
 type RefreshSettings = {
 	files?: boolean;
 	folders?: boolean;
 };
+
+/**
+ * Update empty file styling classes based on plugin settings.
+ * @param plugin
+ */
+function updateEmptyFileClasses(plugin: Plugin) {
+	const settings = (plugin as EmptyFileNamePlugin).settings;
+	emptyFileClasses[ITALIC_CLASS] = settings.italicNames;
+	emptyFileClasses[ASTERISK_CLASS] = settings.asterisk;
+}
 
 /**
  * Returns true when the given file or folder is considered empty.
@@ -45,23 +62,26 @@ async function isFileEmpty(
 }
 
 /**
- * For folders, toggles empty file class on folder titles in explorer.
- * For files, toggles empty file class on file titles in explorer
- * and any open tab titles for that file.
+ * Applies or removes empty file styling classes depending on file emptiness.
+ * @param el the DOM element representing the file or folder name
+ * @param empty whether or not the file is empty
  */
-async function updateFileStyling(
-	plugin: Plugin,
-	file: TAbstractFile,
-): Promise<void> {
-	const empty = await isFileEmpty(plugin, file);
-	const settings = (plugin as EmptyFileNamePlugin).settings;
-	const emptyFileStyle = settings.italicNames
-		? EMPTY_FILE_CLASS_ITALIC
-		: EMPTY_FILE_CLASS;
-	const otherEmptyFileStyle = settings.italicNames
-		? EMPTY_FILE_CLASS
-		: EMPTY_FILE_CLASS_ITALIC;
+function applyEmptinessStyle(el: HTMLElement | null, empty: boolean): void {
+	el?.toggleClass(EMPTY_FILE_CLASS, empty);
+	el?.toggleClass(ITALIC_CLASS, empty && emptyFileClasses[ITALIC_CLASS]);
+	el?.toggleClass(ASTERISK_CLASS, empty && emptyFileClasses[ASTERISK_CLASS]);
+}
 
+/**
+ * Returns the DOM element representing the file or folder name in the file explorer.
+ * @param plugin
+ * @param file If TFile or TFolder, its path is used; if string, it is used as a **file** path.
+ * @returns The DOM element representing the file or folder name, or null if not found.
+ */
+function getFileNameElement(
+	plugin: Plugin,
+	file: TAbstractFile | string,
+): HTMLElement | null {
 	if (file instanceof TFolder) {
 		const explorerFolderTitles = plugin.app.workspace
 			.getLeavesOfType('file-explorer')
@@ -73,79 +93,106 @@ async function updateFileStyling(
 					),
 				),
 			);
-		for (const folderTitleEl of explorerFolderTitles) {
-			const titleContentEl = folderTitleEl.querySelector<HTMLElement>(
-				`.nav-folder-title-content`,
-			);
 
-			titleContentEl?.toggleClass(emptyFileStyle, empty);
-			titleContentEl?.removeClass(otherEmptyFileStyle);
-		}
-	} else if (file instanceof TFile) {
-		// File explorer items: match by data-path attribute.
+		return (
+			explorerFolderTitles
+				.first()
+				?.querySelector<HTMLElement>(`.nav-folder-title-content`) ??
+			null
+		);
+	} else if (file instanceof TFile || typeof file == 'string') {
 		const explorerTitles = plugin.app.workspace
 			.getLeavesOfType('file-explorer')
 			.map((leaf) => leaf.view.containerEl)
 			.flatMap((container) =>
 				Array.from(
 					container.querySelectorAll<HTMLElement>(
-						`.nav-file-title[data-path="${CSS.escape(file.path)}"]`,
+						`.nav-file-title[data-path="${CSS.escape(file instanceof TFile ? file.path : file)}"]`,
 					),
 				),
 			);
 
-		for (const titleEl of explorerTitles) {
-			titleEl.toggleClass(emptyFileStyle, empty);
-			titleEl.removeClass(otherEmptyFileStyle);
-		}
+		return (
+			explorerTitles
+				.first()
+				?.querySelector<HTMLElement>(`.nav-file-title-content`) ?? null
+		);
+	} else {
+		return null;
+	}
+}
 
-		// Open tab titles: match by the leaf that actually displays this file
-		// and navigate to the corresponding tab header by sibling index.
-		const tabTitles = plugin.app.workspace
-			.getLeavesOfType('markdown')
-			.filter((leaf) => leaf.view.getState()?.file === file.path)
-			.map((leaf) => {
-				const leafEl = leaf.view.containerEl // Leaf content
-					.closest('.workspace-leaf');
-				if (!leafEl) {
-					console.error(
-						'Workspace leaf element not found for leaf: ',
-						leaf.getDisplayText(),
-					);
-					return null;
-				}
-				// Sibling index of leaf / tab
-				const siblingIndex = leafEl.parentElement!.indexOf(leafEl);
-				// Move up the tree and to previous sibling to get workspace-tab-header-container
-				// And get its first child for workspace-tab-header-container-inner (contains tabs)
-				const tabHeaderContainerEl = leafEl?.closest(
-					'.workspace-tab-container',
-				)?.previousSibling?.firstChild;
-				if (!tabHeaderContainerEl) {
-					console.error(
-						'Tab header container inner element not found for leaf: ',
-						leaf,
-					);
-					return null;
-				}
-				// List of tab header elements
-				const tabHeaders = (tabHeaderContainerEl as HTMLElement)
-					.children;
-				if (siblingIndex >= tabHeaders.length) {
-					console.error(
-						`Tab sibling index ${siblingIndex} out of range for leaf: ${leaf.getDisplayText()}`,
-					);
-					return null;
-				}
+function getFileTabNameElements(plugin: Plugin, file: TFile): HTMLElement[] {
+	// Open tab titles: match by the leaf that actually displays this file
+	// and navigate to the corresponding tab header by sibling index.
+	return plugin.app.workspace
+		.getLeavesOfType('markdown')
+		.filter((leaf) => leaf.view.getState()?.file === file.path)
+		.map((leaf) => {
+			const leafEl = leaf.view.containerEl // Leaf content
+				.closest('.workspace-leaf');
+			if (!leafEl) {
+				console.error(
+					'Workspace leaf element not found for leaf: ',
+					leaf.getDisplayText(),
+				);
+				return null;
+			}
+			// Sibling index of leaf / tab
+			const siblingIndex = leafEl.parentElement!.indexOf(leafEl);
+			// Move up the tree and to previous sibling to get workspace-tab-header-container
+			// And get its first child for workspace-tab-header-container-inner (contains tabs)
+			const tabHeaderContainerEl = leafEl?.closest(
+				'.workspace-tab-container',
+			)?.previousSibling?.firstChild;
+			if (!tabHeaderContainerEl) {
+				console.error(
+					'Tab header container inner element not found for leaf: ',
+					leaf,
+				);
+				return null;
+			}
+			// List of tab header elements
+			const tabHeaders = (tabHeaderContainerEl as HTMLElement).children;
+			if (siblingIndex >= tabHeaders.length) {
+				console.error(
+					`Tab sibling index ${siblingIndex} out of range for leaf: ${leaf.getDisplayText()}`,
+				);
+				return null;
+			}
 
-				// Get inner tab header by sibling index
-				return tabHeaders.item(siblingIndex)!.firstChild;
-			})
-			.filter((el): el is HTMLElement => el !== null);
+			// Get inner tab header by sibling index
+			const innerHeaderEl =
+				tabHeaders.item(siblingIndex)!.firstElementChild;
+			// Get inner title (the element containing the actual text)
+			return innerHeaderEl?.querySelector<HTMLElement>(
+				`.workspace-tab-header-inner-title`,
+			);
+		})
+		.filter((el): el is HTMLElement => el !== null);
+}
 
-		for (const titleEl of tabTitles) {
-			titleEl.toggleClass(emptyFileStyle, empty);
-			titleEl.removeClass(otherEmptyFileStyle);
+/**
+ * For folders, toggles empty file class on folder names in explorer.
+ * For files, toggles empty file class on file names in explorer and open tab names.
+ */
+async function updateFileStyling(
+	plugin: Plugin,
+	file: TAbstractFile,
+): Promise<void> {
+	updateEmptyFileClasses(plugin);
+	const isEmpty = await isFileEmpty(plugin, file);
+
+	if (file instanceof TFolder) {
+		const folderNameContentEl = getFileNameElement(plugin, file);
+		applyEmptinessStyle(folderNameContentEl, isEmpty);
+	} else if (file instanceof TFile) {
+		const fileNameContentEl = getFileNameElement(plugin, file);
+		applyEmptinessStyle(fileNameContentEl, isEmpty);
+
+		const fileTabNameEls = getFileTabNameElements(plugin, file);
+		for (const nameEl of fileTabNameEls) {
+			applyEmptinessStyle(nameEl, isEmpty);
 		}
 	} else {
 		console.warn('Unsupported file type in updateFileStyling');
@@ -264,16 +311,13 @@ export function registerEmptyFileStyling(plugin: Plugin): void {
 			'rename',
 			(file: TAbstractFile, oldPath: string) => {
 				if (file instanceof TFile && file.extension === 'md') {
+					// TODO: Test if this is actually necessary
 					// Clear styling on any explorer element still using the old path.
-					const oldTitles = Array.from(
-						document.querySelectorAll<HTMLElement>(
-							`.nav-file-title[data-path="${CSS.escape(oldPath)}"]`,
-						),
+					const oldNameContentEl = getFileNameElement(
+						plugin,
+						oldPath,
 					);
-					for (const el of oldTitles) {
-						el.removeClass(EMPTY_FILE_CLASS);
-						el.removeClass(EMPTY_FILE_CLASS_ITALIC);
-					}
+					applyEmptinessStyle(oldNameContentEl, false);
 					void updateFileStyling(plugin, file);
 				}
 			},

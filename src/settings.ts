@@ -3,11 +3,13 @@ import EmptyFileNamePlugin from './main';
 
 export interface EmptyFileNameSettings {
 	italicNames: boolean;
+	asterisk: boolean;
 	whitespaceIsEmpty: boolean;
 }
 
 export const DEFAULT_SETTINGS: EmptyFileNameSettings = {
 	italicNames: true,
+	asterisk: false,
 	whitespaceIsEmpty: false,
 };
 
@@ -33,6 +35,17 @@ export class EmptyFileNameSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.italicNames)
 					.onChange(async (value) => {
 						this.plugin.settings.italicNames = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+		new Setting(containerEl)
+			.setName('Asterisk')
+			.setDesc('Display an asterisk (*) at the end of empty file names.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.asterisk)
+					.onChange(async (value) => {
+						this.plugin.settings.asterisk = value;
 						await this.plugin.saveSettings();
 					}),
 			);

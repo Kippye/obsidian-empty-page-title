@@ -1,9 +1,12 @@
-/* Empty files (no content / children) are shown as gray in the file explorer and tabs. */
 .empty-file {
 	color: gray;
 }
-/* Empty files (no content / children) are shown as gray and italic in the file explorer and tabs. */
-.empty-file-italic {
+
+.empty-file.is-italic {
 	font-style: italic;
+}
+
+.empty-file.has-asterisk::after {
+	content: " *";
 	color: gray;
 }
