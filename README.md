@@ -1,10 +1,11 @@
-# Obsidian Empty Page Title Plugin
+# Obsidian Empty File Name Plugin
 
 This is a plugin for Obsidian (https://obsidian.md).
 
-This very simple plugin has one function - display the names of empty pages as gray and optionally _italic_ in:
+This very simple plugin has one function - display the names of empty folders and files with a more muted / inactive style in:
 
 - Open page tab headers
+- File explorer folders
 - File explorer files
 
 NOTE: This project was mostly written via LLM and then modified to learn the basics of Obsidian plugin development. It probably isn't optimised or futureproof at all.

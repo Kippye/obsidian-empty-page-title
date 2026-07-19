@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-empty-file-name",
 	"version": "1.2.0",
-	"description": "This is a plugin for Obsidian which clearly indicates empty pages and folders",
+	"description": "This is a plugin for Obsidian which clearly indicates empty files and folders",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
