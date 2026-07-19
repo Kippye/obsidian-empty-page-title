@@ -1,9 +1,9 @@
 /* Empty pages (no content) are shown as gray in the file explorer and tabs. */
-.is-empty-page {
+.empty-page {
 	color: gray;
 }
 /* Empty pages (no content) are shown as gray and italic in the file explorer and tabs. */
-.is-empty-page-italic {
+.empty-page-italic {
 	font-style: italic;
 	color: gray;
 }

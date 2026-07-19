@@ -2,8 +2,8 @@
 	"id": "empty-page-title",
 	"name": "Empty Page Title",
 	"version": "1.0.0",
-	"minAppVersion": "1.0.0",
-	"description": "Indicates empty pages with gray and optionally italic title text in tabs and file explorer.",
+	"minAppVersion": "1.6.6",
+	"description": "Indicates empty pages and folders with gray and optionally italic title text in tabs and file explorer.",
 	"author": "Kip",
 	"authorUrl": "https://github.com/Kippye",
 	"isDesktopOnly": true
